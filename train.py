@@ -4,23 +4,12 @@ import torch.optim as optim
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
-from config import GPT_CONFIG
+from config import config
 from dataset import get_dataloader
 from model.tiny_gpt import TinyGPT
 
-def print_model_statistics(config, model_params):
-    print("\n--- Model Statistics ---")
-    print(f"Vocabulary Size: {config['vocab_size']}")
-    print(f"Context Length: {config['context_length']}")
-    print(f"Embedding Dimension: {config['emb_dim']}")
-    print(f"Heads: {config['n_heads']}")
-    print(f"Layers: {config['n_layers']}")
-    print(f"Parameters: {model_params / 1e6:.2f} Million")
-    print(f"Device: {config['device'].upper()}")
-    print("------------------------\n")
-
 def main():
-    config = GPT_CONFIG
+    print(f"Using device: {config.device}")
     
     # Ensure directories exist
     os.makedirs("plots", exist_ok=True)
@@ -28,39 +17,44 @@ def main():
 
     # Prepare Data
     dataloader = get_dataloader(config)
+    print(f"Dataset has {len(dataloader.dataset)} sequences.")
+    print(f"Steps per epoch: {len(dataloader)}")
     
     # Initialize Model
     model = TinyGPT(config)
-    model.to(config["device"])
+    model.to(config.device)
     
+    # We want to trace the number of parameters
     num_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    
-    # Print the required statistics before training
-    print_model_statistics(config, num_params)
-    
-    print(f"Dataset has {len(dataloader.dataset)} sequences.")
-    print(f"Steps per epoch: {len(dataloader)}")
+    print(f"Model parameters: {num_params:,}")
 
-    # Optimizer
-    optimizer = optim.AdamW(model.parameters(), lr=config["learning_rate"])
+    # Optimizer (AdamW is standard for Transformers)
+    optimizer = optim.AdamW(model.parameters(), lr=config.learning_rate)
 
     # Training Loop
     model.train()
-    losses = []
-    steps_completed = 0
-    pbar = tqdm(total=config["max_iters"], desc="Training")
     
-    while steps_completed < config["max_iters"]:
+    losses = []
+    
+    # To keep it quick and demonstrable, we train for max_iters or a few epochs
+    steps_completed = 0
+    pbar = tqdm(total=config.max_iters, desc="Training")
+    
+    while steps_completed < config.max_iters:
         for x, y in dataloader:
-            if steps_completed >= config["max_iters"]:
+            if steps_completed >= config.max_iters:
                 break
                 
-            x, y = x.to(config["device"]), y.to(config["device"])
+            x, y = x.to(config.device), y.to(config.device)
             
+            # Forward pass: compute logits and cross entropy loss
             logits, loss = model(x, y)
             
+            # Backward pass: compute gradients
             optimizer.zero_grad()
             loss.backward()
+            
+            # Gradient Update: adjust weights
             optimizer.step()
             
             losses.append(loss.item())
@@ -69,13 +63,17 @@ def main():
             pbar.update(1)
             pbar.set_postfix({'loss': f"{loss.item():.4f}"})
             
+            # (Optional) We could evaluate on a val set here if we had one
+            
     pbar.close()
     
     print(f"Final training loss: {losses[-1]:.4f}")
 
-    torch.save(model.state_dict(), config["checkpoint_path"])
-    print(f"Saved model checkpoint to {config['checkpoint_path']}")
+    # Save checkpoint
+    torch.save(model.state_dict(), config.checkpoint_path)
+    print(f"Saved model checkpoint to {config.checkpoint_path}")
 
+    # Plot and save loss curve
     plt.figure(figsize=(10, 5))
     plt.plot(losses, label="Training Loss", alpha=0.8)
     plt.xlabel("Training Steps")
@@ -83,8 +81,8 @@ def main():
     plt.title("Tiny GPT Training Dynamics")
     plt.legend()
     plt.grid(True, alpha=0.3)
-    plt.savefig(config["plot_path"])
-    print(f"Saved loss curve plot to {config['plot_path']}")
+    plt.savefig(config.plot_path)
+    print(f"Saved loss curve plot to {config.plot_path}")
 
 if __name__ == "__main__":
     main()
