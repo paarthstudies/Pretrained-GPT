@@ -1,0 +1,26 @@
+# Environments
+venv/
+env/
+.env
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyTorch Checkpoints and Weights
+checkpoints/
+*.pt
+*.pth
+*.ckpt
+
+# IDE and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Note: We are NOT ignoring the following so they can be pushed to your portfolio:
+# - data/corpus.txt (to allow others to train easily)
+# - tokenizer/vocab.json & merges.json (to allow others to generate easily)
+# - plots/loss_curve.png (to show off your training dynamics!)
